@@ -1,6 +1,7 @@
 import * as firebase from "firebase/app";
 import "firebase/storage";
 import "firebase/firestore";
+import "firebase/auth";
 
 var firebaseConfig = {
   apiKey: "AIzaSyAURrECk09jJ3xPp8aMpLHxq49dMWSwYBs",
@@ -16,6 +17,57 @@ firebase.initializeApp(firebaseConfig);
 
 const projectStorage = firebase.storage();
 const projectFireStore = firebase.firestore();
+const auth = firebase.auth();
 const timestamp = firebase.firestore.FieldValue.serverTimestamp;
 
-export { projectStorage, projectFireStore, timestamp };
+const provider = new firebase.auth.GoogleAuthProvider();
+const signInWithGoogle = () => {
+  auth.signInWithPopup(provider);
+};
+
+const generateUserDocument = async (user, additionalData) => {
+  if (!user) return;
+
+  const userRef = projectFireStore.doc(`users/${user.uid}`);
+  const snapshot = await userRef.get();
+
+  if (!snapshot.exists) {
+    const { email, displayName, photoURL, newData } = user;
+
+    try {
+      await userRef.set({
+        displayName,
+        email,
+        photoURL,
+        newData: "newdata",
+        ...additionalData,
+      });
+    } catch (error) {
+      console.error("Error creating user document", error);
+    }
+  }
+  return getUserDocument(user.uid);
+};
+
+const getUserDocument = async (uid) => {
+  if (!uid) return null;
+  try {
+    const userDocument = await projectFireStore.doc(`users/${uid}`).get();
+
+    return {
+      uid,
+      ...userDocument.data(),
+    };
+  } catch (error) {
+    console.error("Error fetching user", error);
+  }
+};
+
+export {
+  projectStorage,
+  projectFireStore,
+  auth,
+  timestamp,
+  signInWithGoogle,
+  generateUserDocument,
+};
